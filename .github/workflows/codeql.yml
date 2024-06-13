@@ -68,10 +68,20 @@ jobs:
           critical_vulns=$(jq '[.runs[].results[] | select(.level == "error")] | length' bandit_output.sarif)
           if [ $critical_vulns -gt 0 ]; then
             gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerability found."
+            gh issue close ${{ github.event.pull_request.number }} --lock
+            echo "::set-output name=blocked::true"
             echo "Block" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
             gh pr comment ${{ github.event.pull_request.number }} --body "Successful: No critical vulnerabilities found."
             gh pr merge ${{ github.event.pull_request.number }}
+            echo "::set-output name=merged::true"
             echo "Successful" >> $GITHUB_STEP_SUMMARY
           fi
+          
+      - name: Output merge/block status
+        if: always()
+        run: |
+          echo "Merge/Block Status:"
+          echo "  Merged: ${{ steps.merge.outputs.merged }}"
+          echo "  Blocked: ${{ steps.block.outputs.blocked }}"
