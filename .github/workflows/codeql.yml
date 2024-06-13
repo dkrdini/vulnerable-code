@@ -1,0 +1,77 @@
+name: Bandit Code Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+
+jobs:
+  bandit-scan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [ 'python' ]
+        python-version: ['3.12']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Bandit
+        run: pip install bandit bandit-sarif-formatter
+
+      - name: Run Bandit
+        id: bandit
+        run: bandit -r . --format sarif -o bandit_output.sarif
+        continue-on-error: true
+        
+      
+      - name: Upload Bandit SARIF results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: bandit-results
+          path: ${{ github.workspace }}/bandit_output.sarif
+
+      - name: Upload Bandit SARIF results to CodeQL
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          sarif_file: ${{ github.workspace }}/bandit_output.sarif
+
+      - name: Output Bandit Results
+        run: cat bandit_output.sarif
+
+      - name: Check Bandit Results
+        if: always()
+        id: check_bandit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          critical_vulns=$(jq '[.runs[].results[] | select(.level == "error")] | length' bandit_output.sarif)
+          if [ $critical_vulns -gt 0 ]; then
+            gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerability found."
+            echo "Block" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body "Successful: No critical vulnerabilities found."
+            gh pr merge ${{ github.event.pull_request.number }}
+            echo "Successful" >> $GITHUB_STEP_SUMMARY
+          fi
