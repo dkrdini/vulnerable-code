@@ -68,7 +68,7 @@ jobs:
           critical_vulns=$(jq '[.runs[].results[] | select(.level == "error")] | length' bandit_output.sarif)
           if [ $critical_vulns -gt 0 ]; then
             gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerability found."
-            gh pr close ${{ github.event.pull_request.number }}
+            gh pr lock ${{ github.event.pull_request.number }}
             echo "::set-output name=blocked::true"
             echo "Block" >> $GITHUB_STEP_SUMMARY
             exit 1
