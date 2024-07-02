@@ -57,10 +57,10 @@ def get_exploitability(cwe_id):
 
 def main():
     # Replace these with your actual GitHub username, repository name, personal access token, and branch name
-    owner = "your-github-username"
+    owner = "dkrdini"
     repo = "vulnerable-code"
-    token = "your-github-token"
-    branch = "develop"  # Specify the branch to check alerts
+    token = "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"
+    branch = "main"  # Specify the branch to check alerts
 
     try:
         # Fetch alerts for the specified branch
